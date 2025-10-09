@@ -65,81 +65,124 @@ sample_df['GAP_rolling_avg'] = sample_df['GAP_rolling_avg'].fillna(method='bfill
 Feature_Columns = ['Global_reactive_power', 'Voltage',
                    'Global_intensity', 'Sub_metering_1', 'Sub_metering_2', 'Sub_metering_3']
 
-# Ensure all feature columns exist in the DataFrame
-for col in Feature_Columns:
-    if col not in sample_df.columns:
-        st.write(f"Warning: {col} not found in DataFrame columns.")
+#--------------------------------------------------------------------------------------
+st.set_page_config(page_title="Household Power Consumption Prediction", layout="wide")
+st.markdown("""
+    <style>
+    .reportview-container {
+        background: #f0f2f6;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Check for missing values in feature columns
-for col in Feature_Columns:
-    count = sample_df[col].isnull().sum()
-    st.write(f"{col} - Missing values: {count}")     
+st.markdown("<h1 style='text-align: center;'>Household Power Consumption Prediction</h1>", unsafe_allow_html=True)
 
-# Define features and target
+    
+st.subheader("Data Overview")
+st.write("Original Data shape:", len(df))
+st.write("Sample Data shape:", len(sample_df))
+st.write("First 5 rows:")
+st.write(sample_df.head())
+
 X = sample_df[Feature_Columns]
-y = sample_df['Global_active_power']       
-
-st.write("Feature Columns:", Feature_Columns)
-st.write("Data Types:", sample_df.dtypes)
+y = sample_df['Global_active_power']
 
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)   
-
-models = {
-    'Linear Regression',
-    'Random Forest',
-    'Gradient Boosting',
-    'Neural Network'
-}
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 
-for model_name in models.keys():
-    if model_name == 'Linear Regression':
-        model = LinearRegression()
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
+lr_model = LinearRegression()
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+gb_model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+mlp_model = MLPRegressor(hidden_layer_sizes=(100,50), max_iter=300, random_state=42)
 
-        # Evaluate the model
-        mae = mean_absolute_error(y_test, y_pred)
-        rmse = root_mean_squared_error(y_test, y_pred)  
-        r2 = r2_score(y_test, y_pred)
-        st.write(f"{model_name} - MAE: {mae:.4f}, RMSE: {rmse:.4f}, R2: {r2:.4f}")
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.write("Training Linear Regression Model...")
+    lr_model.fit(X_train, y_train)
+    y_pred_lr = lr_model.predict(X_test)
 
-    elif model_name == 'Random Forest':
-        model = RandomForestRegressor(n_estimators=100, random_state=42)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        
-        # Evaluate the model
-        mae = mean_absolute_error(y_test, y_pred)
-        rmse = root_mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-        st.write(f"{model_name} - MAE: {mae:.4f}, RMSE: {rmse:.4f}, R2: {r2:.4f}")
+    st.bar_chart(pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_lr}).head(50))
+    mae_lr = mean_absolute_error(y_test, y_pred_lr)
+    rmse_lr = root_mean_squared_error(y_test, y_pred_lr)
+    r2_lr = r2_score(y_test, y_pred_lr)
+with col2:
+    st.write("Training Random Forest Model...")
+    rf_model.fit(X_train, y_train)
+    y_pred_rf = rf_model.predict(X_test)
 
-    elif model_name == 'Gradient Boosting':
-        model = GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        # Evaluate the model
-        mae = mean_absolute_error(y_test, y_pred)   
-        rmse = root_mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)   
-        st.write(f"{model_name} - MAE: {mae:.4f}, RMSE: {rmse:.4f}, R2: {r2:.4f}")
-    elif model_name == 'Neural Network':
-        model = MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=500, random_state=42)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
+    st.bar_chart(pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_rf}).head(50))
+    mae_rf = mean_absolute_error(y_test, y_pred_rf)
+    rmse_rf = root_mean_squared_error(y_test, y_pred_rf)
+    r2_rf = r2_score(y_test, y_pred_rf)
+with col3:
+    st.write("Training Gradient Boosting Model...")
+    gb_model.fit(X_train, y_train)
+    y_pred_gb = gb_model.predict(X_test)
 
-        # Evaluate the model
-        mae = mean_absolute_error(y_test, y_pred)
-        rmse = root_mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-    
-        st.write(f"{model_name} - MAE: {mae:.4f}, RMSE: {rmse:.4f}, R2: {r2:.4f}")
-    models[model_name] = model  # Store the trained model
+    st.bar_chart(pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_gb}).head(50))
+    mae_gb = mean_absolute_error(y_test, y_pred_gb)
+    rmse_gb = root_mean_squared_error(y_test, y_pred_gb)
+    r2_gb = r2_score(y_test, y_pred_gb)
 
-    
+with col4:
+    st.write("Training MLP Regressor Model...")
+    mlp_model.fit(X_train, y_train)
+    y_pred_mlp = mlp_model.predict(X_test)
+
+    st.bar_chart(pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_mlp}).head(50))
+    mae_mlp = mean_absolute_error(y_test, y_pred_mlp)
+    rmse_mlp = root_mean_squared_error(y_test, y_pred_mlp)
+    r2_mlp = r2_score(y_test, y_pred_mlp)
+
+metrics = {
+    "Model": ["Linear Regression", "Random Forest", "Gradient Boosting", "MLP Regressor"],
+    "MAE": [mae_lr, mae_rf, mae_gb, mae_mlp],
+    "RMSE": [rmse_lr, rmse_rf, rmse_gb, rmse_mlp],
+    "R²": [r2_lr, r2_rf, r2_gb, r2_mlp]
+}
+
+st.subheader("Model Performance Comparison")
+st.table(pd.DataFrame(metrics).set_index('Model'))
+
+ 
+
+import altair as alt
+
+results_df = pd.DataFrame({
+    "Model": ["Linear Regression", "Random Forest", "Gradient Boosting", "MLP Regressor"],
+    "MAE": [mae_lr, mae_rf, mae_gb, mae_mlp],
+    "RMSE": [rmse_lr, rmse_rf, rmse_gb, rmse_mlp],
+    "R²": [r2_lr, r2_rf, r2_gb, r2_mlp]
+})
+
+# Melt the DataFrame to long form: each metric becomes a row
+df_melted = results_df.melt(
+    id_vars="Model",
+    value_vars=["MAE", "RMSE", "R²"],
+    var_name="Metric",
+    value_name="Value"
+)
+
+# Now plot
+chart = (
+    alt.Chart(df_melted)
+    .mark_line(point=True)
+    .encode(
+        x=alt.X("Metric:N", sort=["MAE", "RMSE", "R²"]),
+        y=alt.Y("Value:Q"),
+        color="Model:N",  # if you later have multiple models, this distinguishes them
+        tooltip=["Model:N", "Metric:N", "Value:Q"]
+    )
+    .properties(
+        title="Model Performance Metrics",
+        width=400,
+        height=300
+    )
+)
+
+st.altair_chart(chart, use_container_width=True)
