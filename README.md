@@ -1,4 +1,4 @@
-#🏠 Household Power Consumption Prediction Dashboard
+# 🏠 Household Power Consumption Prediction Dashboard
 
 This project builds an interactive Streamlit dashboard to analyze and predict household power consumption using multiple regression models.
 It uses the Individual Household Electric Power Consumption Dataset from the UCI Machine Learning Repository (Dataset ID: 235).
