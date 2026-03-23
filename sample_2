@@ -1,0 +1,195 @@
+from ucimlrepo import fetch_ucirepo
+import pandas as pd
+import streamlit as st
+
+dataset = fetch_ucirepo(id=235)
+df = dataset.data.original  # or .features if .original is not available
+
+sample_df = df.sample(n=500000, random_state=42)
+# print("Sample data:")
+#print(sample_df.head())
+
+
+print("Original Data shape:", len(df))
+print("Sample Data shape:", len(sample_df))
+
+sample_df['Date'] = pd.to_datetime(sample_df['Date'], format='%d/%m/%Y')
+sample_df['Time'] = pd.to_datetime(sample_df['Time'], format='%H:%M:%S').dt.time
+sample_df['DateTime'] = pd.to_datetime(sample_df['Date'].astype(str) + ' ' + sample_df['Time'].astype(str))
+sample_df.drop(['Date', 'Time'], axis=1, inplace=True)
+
+columns = [
+    'Global_active_power',
+    'Global_reactive_power',
+    'Voltage',
+    'Global_intensity',
+    'Sub_metering_1',
+    'Sub_metering_2',
+    'Sub_metering_3'
+]
+
+null_percentages = {}
+
+for col in columns:
+    # Calculate % of nulls
+    null_pct = sample_df[col].isna().sum() / len(sample_df) * 100
+    null_percentages[col] = null_pct
+    
+    # Convert to numeric, coerce errors, fill NA with 0, cast to float64
+    sample_df[col] = (
+        pd.to_numeric(sample_df[col], errors='coerce')
+        .fillna(0)
+        .astype('float64')
+    )
+
+# If you want, you can show the null percentages
+for col, pct in null_percentages.items():
+    print(f"{col} null percentage: {pct:.2f}%")
+sample_df.set_index('DateTime', inplace=True)
+
+# Daily average & weekly SMA
+daily_avg = sample_df['Global_active_power'].resample('D').mean()
+daily_avg_sma7 = daily_avg.rolling(window=7).mean()
+
+# Hourly average & peak hour
+sample_df['hour'] = sample_df.index.hour
+hourly_avg = sample_df.groupby('hour')['Global_active_power'].mean()
+peak_hour = hourly_avg.idxmax()
+print("Peak consumption hour:", peak_hour)
+
+
+# Rolling average over past hour
+sample_df['GAP_rolling_1h'] = sample_df['Global_active_power'].rolling(window=60).mean()
+sample_df['GAP_rolling_1h'] = sample_df['GAP_rolling_1h'].fillna(method='bfill')
+
+for col in sample_df.columns:
+    st.write(f"{col} - Missing values: {sample_df[col].isnull().sum()}")
+
+
+Feature_Columns = ['Global_reactive_power', 'Voltage',
+                   'Global_intensity', 'Sub_metering_1', 'Sub_metering_2', 'Sub_metering_3','hour','GAP_rolling_1h','peak_hour']
+for col in Feature_Columns:
+    count = sample_df[col].isnull().sum()
+    st.write(f"{col} - Missing values: {count}")
+   
+st.write("Feature Columns:", Feature_Columns)
+st.write("Data Types:", sample_df.dtypes)
+
+X = sample_df[Feature_Columns]
+y = sample_df['Global_active_power']
+
+print(f"Feature Columns:", Feature_Columns)
+print(sample_df.dtypes) 
+
+print("First 5 rows:")
+print(sample_df.head())
+print(sample_df.dtypes)
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Linear Regression Model Training
+from sklearn.linear_model import LinearRegression
+model = LinearRegression()
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+
+# Random Forest Regressor Model Training
+from sklearn.ensemble import RandomForestRegressor
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+rf_y_pred = rf_model.predict(X_test)
+
+from sklearn.metrics import mean_absolute_error,root_mean_squared_error,r2_score
+print("Linear Regression Model Performance:")
+print("Mean Absolute Error:", mean_absolute_error(y_test, y_pred))
+print("Root Mean Squared Error:", root_mean_squared_error(y_test, y_pred))
+print("R^2 Score:", r2_score(y_test, y_pred))
+
+print("Random Forest Model Performance:")
+print("Mean Absolute Error:", mean_absolute_error(y_test, rf_y_pred))       
+print("Root Mean Squared Error:", root_mean_squared_error(y_test, rf_y_pred))
+print("R^2 Score:", r2_score(y_test, rf_y_pred))
+
+#print(f"Feature Columns:", Feature_Columns)
+#print(df.dtypes) 
+
+metrics = {
+    "Linear Regression": {
+        "Mean Absolute Error": mean_absolute_error(y_test, y_pred),
+        "Root Mean Squared Error": root_mean_squared_error(y_test, y_pred),
+        "R^2 Score": r2_score(y_test, y_pred)
+    },
+    "Random Forest": {
+        "Mean Absolute Error": mean_absolute_error(y_test, rf_y_pred),
+        "Root Mean Squared Error": root_mean_squared_error(y_test, rf_y_pred),
+        "R^2 Score": r2_score(y_test, rf_y_pred)
+    }
+}
+
+st.title("Power Consumption Prediction Models")
+
+for model, metrics in metrics.items():
+    st.subheader(model)
+    for metric_name, metric_value in metrics.items():
+        st.write(f"{metric_name}: {metric_value}")
+
+st.write("Measurement Metrics:", metrics)
+
+#------------------------------------------------------------------------------------
+# Ensure all feature columns exist in the DataFrame
+for col in Feature_Columns:
+    if col not in sample_df.columns:
+        st.write(f"Warning: {col} not found in DataFrame columns.")
+
+# Check for missing values in feature columns
+for col in Feature_Columns:
+    count = sample_df[col].isnull().sum()
+    st.write(f"{col} - Missing values: {count}")     
+
+# Define features and target
+X = sample_df[Feature_Columns]
+y = sample_df['Global_active_power']       
+
+#st.write("Feature Columns:", Feature_Columns)
+#st.write("Data Types:", sample_df.dtypes)
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)   
+
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.neural_network import MLPRegressor
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+import streamlit as st
+
+def evaluate_models(X_train, X_test, y_train, y_test, models):
+    """
+    Trains and evaluates multiple regression models, displaying results in Streamlit.
+    """
+    model_map = {
+        'Linear Regression': LinearRegression(),
+        'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42),
+        'Gradient Boosting': GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, random_state=42),
+        'Neural Network': MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=500, random_state=42)
+    }
+
+    for model_name in models.keys():
+        if model_name not in model_map:
+            st.warning(f"⚠️ {model_name} not recognized, skipping...")
+            continue
+        
+        model = model_map[model_name]
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        # Metrics
+        mae = mean_absolute_error(y_test, y_pred)
+        rmse = root_mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+        st.write(f"### {model_name}")
+        st.write(f"MAE: {mae:.4f}")
+        st.write(f"RMSE: {rmse:.4f}")
+        st.write(f"R²: {r2:.4f}")
+        st.divider()
